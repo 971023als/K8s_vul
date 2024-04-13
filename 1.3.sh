@@ -1,25 +1,41 @@
 #!/bin/bash
 
-# 디렉터리 설정
-output_dir="./aws_iam_tags_audit"
-mkdir -p $output_dir
+# 변수 초기화
+{
+  "분류": "API Server Configuration",
+  "코드": "1.3",
+  "위험도": "중요도 상",
+  "진단_항목": "SSL/TLS 적용",
+  "대응방안": {
+    "설명": "TLS는 데이터를 암호화하여 송수신하는 프로토콜입니다. Kubernetes의 API Server와 kubelet 간 통신, 사용자 인증에 TLS를 적용하여 네트워크 스니핑으로부터 정보를 보호하고, API Server의 클라이언트를 검증합니다. 인증서는 주기적으로 변경하며, 안전한 암호화 방식을 사용해야 합니다.",
+    "설정방법": [
+      "API 서버 및 kubelet 인증서 설정: kubelet-certificate-authority, kubelet-client-certificate, kubelet-client-key 설정",
+      "API 서버 TLS 설정: tls-cert-file, tls-private-key-file, client-ca-file 설정",
+      "안전한 TLS 버전 사용 설정",
+      "인증서 교체 주기 설정 및 관리"
+    ]
+  },
+  "현황": [],
+  "진단_결과": ""
+}
 
-# IAM 사용자 태그 조회 및 진단
-echo "Fetching IAM Users and evaluating tags..."
-aws iam list-users --output json > $output_dir/users.json
 
-# 태그 평가 및 결과 저장
-echo "[]" > $output_dir/tag_audit_results.json  # 초기 JSON 배열 파일 생성
+# SSL/TLS 설정 진단
+echo "API Server SSL/TLS 설정 진단을 시작합니다..."
 
-jq -r '.Users[] | .UserName' $output_dir/users.json | while read user; do
-  user_tags=$(aws iam list-user-tags --user-name "$user" --output json)
-  name_tag=$(echo $user_tags | jq -r '.Tags[] | select(.Key == "Name") | .Value')
-  email_tag=$(echo $user_tags | jq -r '.Tags[] | select(.Key == "Email") | .Value')
-  department_tag=$(echo $user_tags | jq -r '.Tags[] | select(.Key == "Department") | .Value')
+# TLS 설정 확인
+echo "kube-apiserver.yaml의 TLS 설정 확인:"
+grep "tls-cert-file" /etc/kubernetes/manifests/kube-apiserver.yaml
+grep "tls-private-key-file" /etc/kubernetes/manifests/kube-apiserver.yaml
+grep "client-ca-file" /etc/kubernetes/manifests/kube-apiserver.yaml
 
-  # 결과 생성 및 저장
-  jq -n --arg user "$user" --arg name_tag "$name_tag" --arg email_tag "$email_tag" --arg department_tag "$department_tag" \
-  '{"user": $user, "Name": $name_tag, "Email": $email_tag, "Department": $department_tag}' >> $output_dir/tag_audit_results.json
-done
-
-echo "Audit complete. Results saved in $output_dir."
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"
