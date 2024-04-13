@@ -1,52 +1,38 @@
 #!/bin/bash
 
+# 변수 초기화
 {
-  "분류": "가상 리소스 관리",
+  "분류": "Controller Manager Configuration",
   "코드": "3.2",
-  "위험도": "중요도 상",
-  "진단_항목": "보안 그룹 인/아웃바운드 불필요 정책 관리",
+  "위험도": "중요도 중",
+  "진단_항목": "SSL/TLS 적용",
   "대응방안": {
-    "설명": "VPC에서의 보안 그룹은 EC2 인스턴스에 대한 인/아웃바운드 트래픽을 제어하는 가상 방화벽 역할을 합니다. 보안 그룹을 통해 서브넷이 아닌 인스턴스 수준에서 트래픽을 제어하여, 각 인스턴스에 서로 다른 보안 그룹을 할당할 수 있습니다. 이를 통해 네트워크 프로토콜과 포트 범위에 따른 규칙을 설정하여 특정 소스에서만 통신이 가능하도록 합니다.",
+    "설명": "Kubernetes에서 SSL/TLS를 이용하여 네트워크 상의 DATA를 보호하고 클라이언트 인증을 통한 보안 강화가 필요합니다. 이를 통해 네트워크 스니핑과 같은 방법으로 주요 정보가 노출되어 다른 공격에 이용되는 것을 방지하고, API server에 접근하는 대상을 검증할 수 있습니다.",
     "설정방법": [
-      "EC2 대시보드로 이동",
-      "보안 그룹 선택 및 인바운드, 아웃바운드 규칙 검토",
-      "불필요하거나 너무 넓은 범위로 설정된 규칙 수정 또는 삭제"
+      "클라이언트 인증을 위해 SSL/TLS 적용: /etc/kubernetes/manifests/kube-controller-manager.yaml 파일 내 --root-ca-file=/etc/kubernetes/pki/ca.crt 설정",
+      "인증서 교환주기 설정: /etc/kubernetes/manifests/kube-controller-manager.yaml 파일 내 --feature-gates=RotateKubeletServerCertificate=true 추가"
     ]
   },
   "현황": [],
-  "진단_결과": "진단 필요"
+  "진단_결과": ""
 }
 
-# Script to manage Security Group Inbound/Outbound Unnecessary Policies
-#!/bin/bash
 
-echo "Fetching all security groups and their rules..."
+# Controller Manager SSL/TLS 설정 검증 시작
+echo "Controller Manager SSL/TLS 설정 검증을 시작합니다..."
 
-# Retrieve all security groups
-security_groups=$(aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupId, GroupName, Description]' --output text)
-echo "Available Security Groups:"
-echo "$security_groups"
+# kube-controller-manager.yaml SSL/TLS 설정 파일 검증
+echo "kube-controller-manager.yaml의 SSL/TLS 인증 설정 확인:"
+grep "root-ca-file" /etc/kubernetes/manifests/kube-controller-manager.yaml
+grep "feature-gates" /etc/kubernetes/manifests/kube-controller-manager.yaml
 
-# User prompt to select a specific Security Group
-read -p "Enter Security Group ID to check inbound/outbound rules: " sg_id
-
-# Display the selected security group's inbound and outbound rules
-echo "Inbound Rules:"
-aws ec2 describe-security-groups --group-ids "$sg_id" --query 'SecurityGroups[*].IpPermissions' --output json
-echo "Outbound Rules:"
-aws ec2 describe-security-groups --group-ids "$sg_id" --query 'SecurityGroups[*].IpPermissionsEgress' --output json
-
-# Assessment prompts based on user evaluation
-read -p "Are there any unnecessary policies in inbound rules? (yes/no): " inbound_status
-read -p "Are there any unnecessary policies in outbound rules? (yes/no): " outbound_status
-
-if [ "$inbound_status" = "yes" ] || [ "$outbound_status" = "yes" ]; then
-    echo "At least one security rule is identified as unnecessary. Recommend reviewing and updating the policies."
-    진단_결과="취약"
-else
-    echo "No unnecessary policies detected. Security group settings are appropriate."
-    진단_결과="양호"
-fi
-
-# Output final assessment
-echo "진단 결과: $진단_결과"
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"

@@ -1,34 +1,38 @@
 #!/bin/bash
 
 # 변수 초기화
-분류="권한 관리"
-코드="2.2"
-위험도="중요도 상"
-진단_항목="네트워크 서비스 정책 관리"
-대응방안="AWS 네트워크 서비스(VPC, Route 53, Direct Connect 등)는 IAM 자격 증명에 권한 정책을 연결하여 관리되어야 합니다. 적절한 권한을 통한 체계적인 관리는 보안과 효율성을 보장합니다."
-설정방법="네트워크 서비스 별 IAM 관리자/운영자 권한 그룹 생성: 1) IAM 내 그룹 탭 접근, 2) 새로운 그룹 생성, 3) 필요한 권한 정책 연결, 4) 그룹 생성 확인"
-현황=()
-진단_결과=""
+{
+  "분류": "etcd Configuration",
+  "코드": "2.2",
+  "위험도": "중요도 중",
+  "진단_항목": "etcd 암호화",
+  "대응방안": {
+    "설명": "etcd는 Kubernetes에서 사용하는 중요 데이터를 저장하는 분산 key-value 저장소입니다. 데이터는 안전한 알고리즘을 사용하여 암호화되어야 하며, 사용된 암호화 기법은 고급 보안 표준을 충족해야 합니다.",
+    "설정방법": [
+      "kube-apiserver의 YAML 설정 파일에 experimental-encryption-provider-config 옵션 추가",
+      "암호화 설정 파일에 안전한 암호화 방식 적용, 예: AESCBC",
+      "암호화 설정 파일 경로 지정: /etc/kubernetes/manifests/kube-apiserver.yaml 파일 내 설정 추가"
+    ]
+  },
+  "현황": [],
+  "진단_결과": ""
+}
 
-# IAM 정책 확인 및 그룹 관리
-echo "Checking IAM policies and managing groups for VPC, Route 53, and Direct Connect..."
-policy_attached=$(aws iam list-attached-group-policies --group-name NetworkAdmins --query 'AttachedPolicies[?PolicyName==`AmazonVPCFullAccess` || PolicyName==`AmazonRoute53FullAccess` || PolicyName==`AWSDirectConnectFullAccess`].PolicyName' --output text)
 
-if [ -z "$policy_attached" ]; then
-    echo "Required policies are not fully attached to the NetworkAdmins group."
-    진단_결과="취약"
-else
-    echo "Required policies are correctly attached to the NetworkAdmins group:"
-    echo "$policy_attached"
-    진단_결과="양호"
-fi
+# etcd 암호화 설정 검토 시작
+echo "etcd 암호화 설정 검토를 시작합니다..."
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단_항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "설정방법: $설정방법"
-echo "현황: ${현황[@]}"
-echo "진단_결과: $진단_결과"
+# kube-apiserver 설정 파일 검토
+echo "kube-apiserver.yaml의 암호화 설정 확인:"
+grep "experimental-encryption-provider-config" /etc/kubernetes/manifests/kube-apiserver.yaml
+
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"

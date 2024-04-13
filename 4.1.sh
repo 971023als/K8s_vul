@@ -1,73 +1,42 @@
 #!/bin/bash
 
+# 변수 초기화
 {
-  "분류": "운영 관리",
+  "분류": "PodSecurityPolicy Configuration",
   "코드": "4.1",
-  "위험도": "중요도 중",
-  "진단_항목": "EBS 및 볼륨 암호화 설정",
+  "위험도": "중요도 상",
+  "진단_항목": "컨테이너 권한 제어",
   "대응방안": {
-    "설명": "EBS는 EC2 인스턴스 생성 및 이용 시 사용되는 블록 형태의 스토리지 볼륨이며, AES-256 알고리즘을 사용하여 볼륨 암호화를 지원합니다. 이는 데이터 및 애플리케이션에 대한 보안을 강화하여 안전하게 정보를 저장할 수 있게 해줍니다.",
+    "설명": "Pod Security Policy(PSP)는 Kubernetes 클러스터에서 Pod의 보안 정책을 설정하고, 컨테이너의 권한을 제어합니다. 이는 컨테이너가 과도한 권한을 가지지 않도록 하며, 네트워크 및 포트 정책 설정을 통한 접근 제어를 구현합니다.",
     "설정방법": [
-      "인스턴스 시작 클릭",
-      "AMI 선택",
-      "인스턴스 유형 선택",
-      "인스턴스 구성",
-      "스토리지 추가",
-      "태그 추가",
-      "보안 그룹 구성",
-      "스토리지 암호화 여부 확인",
-      "EC2 인스턴스 클릭 및 스토리지 클릭",
-      "스토리지 암호화 설정여부 확인",
-      "Elastic Block Store 메뉴 내 볼륨 기능 선택",
-      "볼륨 생성 메뉴 내 '암호화' 활성화 후 KMS 키 값을 추가하여 설정"
+      "Privileged 컨테이너 실행 제한: .spec.allowPrivilegeEscalation=false 설정",
+      "Root 사용자 실행 제한: .spec.runAsUser.rule 설정으로 MustRunAsNonRoot 또는 MustRunAs 적용",
+      "NET_RAW 기능 제한: requiredDropCapabilities에 NET_RAW 또는 ALL 추가",
+      "기타 컨테이너 권한 설정 검토 및 조정"
     ]
   },
   "현황": [],
-  "진단_결과": "양호"
+  "진단_결과": ""
 }
 
 
-# Check for aws CLI tools
-if ! command -v aws &> /dev/null; then
-    echo "AWS CLI is not installed. Please install AWS CLI to run this script."
-    exit 1
-fi
+# Pod Security Policy 설정 검증 시작
+echo "Pod Security Policy 설정 검증을 시작합니다..."
 
-# List all EBS volumes with their encryption status
-echo "Retrieving EBS volumes and encryption status..."
-ebs_volumes_output=$(aws ec2 describe-volumes --query 'Volumes[*].{VolumeId:VolumeId, Encrypted:Encrypted}' --output json)
-if [ $? -ne 0 ]; then
-    echo "Failed to retrieve EBS volumes. Please check your AWS CLI setup and permissions."
-    exit 1
-fi
+# PSP 설정 확인
+echo "PSP 설정 확인 중..."
+kubectl get psp <name> -o=jsonpath='{.spec.allowPrivilegeEscalation}'
+kubectl get psp <name> -o=jsonpath='{.spec.privileged}'
+kubectl get psp <name> -o=jsonpath='{.spec.runAsUser.rule}'
+kubectl get psp <name> -o=jsonpath='{.spec.requiredDropCapabilities}'
 
-if [ -z "$ebs_volumes_output" ]; then
-    echo "No EBS volumes found."
-    exit 0
-fi
-
-echo "EBS Volumes found:"
-echo "$ebs_volumes_output"
-
-# Analyze the encryption status for compliance
-compliance_status="양호"  # Assume all volumes must be encrypted for a '양호' status
-echo "Analyzing encryption status of EBS volumes..."
-for row in $(echo "${ebs_volumes_output}" | jq -r '.[] | @base64'); do
-    _jq() {
-     echo ${row} | base64 --decode | jq -r ${1}
-    }
-    volume_id=$(_jq '.VolumeId')
-    encrypted=$(_jq '.Encrypted')
-    if [ "$encrypted" == "false" ]; then
-        echo "Volume $volume_id is not encrypted."
-        compliance_status="취약"
-        break
-    fi
-done
-
-echo "Encryption compliance status: $compliance_status"
-
-# Update JSON diagnostic result directly using jq and sponge
-echo "Updating diagnosis result..."
-jq --arg status "$compliance_status" '.진단_결과 = $status' diagnosis.json | sponge diagnosis.json
-echo "Diagnosis updated with result: $compliance_status"
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"

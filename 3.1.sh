@@ -1,47 +1,38 @@
 #!/bin/bash
 
 # 변수 초기화
-분류="가상 리소스 관리"
-코드="3.1"
-위험도="중요도 상"
-진단_항목="보안 그룹 인/아웃바운드 ANY 설정 관리"
-대응방안="VPC 내 보안 그룹을 통한 인/아웃바운드 트래픽을 적절하게 제어해야 합니다. 인스턴스에 할당된 보안 그룹을 검토하여 모든 포트에 대한 넓은 범위의 허용이 설정되어 있지 않도록 관리해야 합니다."
-설정방법="AWS Management Console 또는 AWS CLI를 사용하여 보안 그룹의 인/아웃바운드 규칙을 검토하고 수정합니다."
-현황=()
-진단_결과=""
+{
+  "분류": "Controller Manager Configuration",
+  "코드": "3.1",
+  "위험도": "중요도 중",
+  "진단_항목": "Controller 인증 제어",
+  "대응방안": {
+    "설명": "Kubernetes의 Controller Manager는 클러스터의 다양한 컨트롤러를 모니터링하며, 이들 컨트롤러가 시스템의 상태를 원하는 상태로 유지하도록 도와줍니다. 이를 위해 각 컨트롤러는 적절한 인증을 통해 안전하게 작동해야 합니다.",
+    "설정방법": [
+      "각 컨트롤러에 대해 개별 서비스 계정 자격 증명을 사용하도록 설정: --use-service-account-credentials=true",
+      "컨트롤러 계정 자격증명에 사용되는 인증서 관리: --service-account-private-key-file=/etc/kubernetes/pki/sa.key"
+    ]
+  },
+  "현황": [],
+  "진단_결과": ""
+}
 
-echo "Checking Security Group settings for any wide open ports..."
 
-# 보안 그룹 설정 검토
-security_groups=$(aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupId,GroupName]' --output text)
+# Controller Manager 설정 검증 시작
+echo "Controller Manager 설정 검증을 시작합니다..."
 
-echo "Available Security Groups:"
-echo "$security_groups"
+# kube-controller-manager.yaml 설정 파일 검증
+echo "kube-controller-manager.yaml의 인증 설정 확인:"
+grep "use-service-account-credentials" /etc/kubernetes/manifests/kube-controller-manager.yaml
+grep "service-account-private-key-file" /etc/kubernetes/manifests/kube-controller-manager.yaml
 
-# User prompt to select a specific Security Group
-read -p "Enter Security Group ID to check: " sg_id
-
-# Check inbound and outbound rules for 'ANY' settings (0.0.0.0/0 or ::/0)
-inbound_any=$(aws ec2 describe-security-groups --group-ids "$sg_id" --query 'SecurityGroups[*].IpPermissions[?IpRanges[?CidrIp==`0.0.0.0/0`] || Ipv6Ranges[?CidrIpv6==`::/0`]].FromPort' --output text)
-outbound_any=$(aws ec2 describe-security-groups --group-ids "$sg_id" --query 'SecurityGroups[*].IpPermissionsEgress[?IpRanges[?CidrIp==`0.0.0.0/0`] || Ipv6Ranges[?CidrIpv6==`::/0`]].FromPort' --output text)
-
-# Result processing and diagnosis
-if [ -n "$inbound_any" ] || [ -n "$outbound_any" ]; then
-    echo "Security Group '$sg_id' has open 'ANY' settings on these ports:"
-    echo "Inbound Open Ports: $inbound_any"
-    echo "Outbound Open Ports: $outbound_any"
-    진단_결과="취약"
-else
-    echo "Security Group '$sg_id' does not have any wide open 'ANY' settings."
-    진단_결과="양호"
-fi
-
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단_항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "설정방법: $설정방법"
-echo "현황: ${현황[@]}"
-echo "진단_결과: $진단_결과"
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"
