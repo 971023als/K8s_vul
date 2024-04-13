@@ -1,25 +1,41 @@
 #!/bin/bash
 
-# 디렉터리 설정
-output_dir="./aws_iam_groups_audit"
-mkdir -p $output_dir
+# 변수 초기화
+{
+  "분류": "API Server Configuration",
+  "코드": "1.4",
+  "위험도": "중요도 중",
+  "진단_항목": "Admission Control Plugin 설정",
+  "대응방안": {
+    "설명": "Admission Control 플러그인은 클러스터 사용 방식을 제어하며, PodSecurityPolicy, 이미지 접근 제어, webhook을 통한 보안 기능 수행 등을 지원합니다. 이를 통해 네임스페이스 또는 클러스터 수준의 보안 기준을 수립하고, 자동 주석 추가, 리소스 제한 등의 구성 관리도 가능합니다.",
+    "설정방법": [
+      "Admission Control이 정책을 적용하도록 설정: enable-admission-plugins에 적절한 플러그인 추가",
+      "privileged pod에서 exec 및 attach 사용 금지 설정: enable-admission-plugins에 DenyEscalatingExec 추가",
+      "PodSecurityPolicy 적용으로 클러스터 보안 수준 강화",
+      "API 서버의 요청 승인 속도 제한을 위한 EventRateLimit 플러그인 추가"
+    ]
+  },
+  "현황": [],
+  "진단_결과": ""
+}
 
-# IAM 그룹 및 그룹 사용자 조회
-echo "Fetching IAM Groups and group members..."
-aws iam list-groups --output json > $output_dir/groups.json
 
-# 각 그룹별 사용자 목록 조회 및 불필요한 계정 식별
-echo "[]" > $output_dir/group_audit_results.json  # 초기 JSON 배열 파일 생성
+# Admission Control 설정 검토
+echo "API Server Admission Control 설정 검토를 시작합니다..."
 
-jq -r '.Groups[] | .GroupName' $output_dir/groups.json | while read group; do
-  group_users=$(aws iam get-group --group-name "$group" --output json)
-  group_users | jq -r '.Users[] | .UserName' | while read user; do
-    if [[ "$user" == *"test"* ]]; then
-      # 결과 생성 및 저장
-      jq -n --arg group "$group" --arg user "$user" \
-      '{"group": $group, "unnecessary_user": $user}' >> $output_dir/group_audit_results.json
-    fi
-  done
-done
+# Admission Control 설정 확인
+echo "kube-apiserver.yaml의 Admission Control 설정 확인:"
+grep "enable-admission-plugins" /etc/kubernetes/manifests/kube-apiserver.yaml
+grep "disable-admission-plugins" /etc/kubernetes/manifests/kube-apiserver.yaml
+grep "admission-control-config-file" /etc/kubernetes/manifests/kube-apiserver.yaml
 
-echo "Audit complete. Results saved in $output_dir."
+# 결과 JSON 출력
+echo "{
+  \"분류\": \"$분류\",
+  \"코드\": \"$코드\",
+  \"위험도\": \"$위험도\",
+  \"진단_항목\": \"$진단_항목\",
+  \"대응방안\": \"$대응방안\",
+  \"현황\": $현황,
+  \"진단_결과\": \"$진단_결과\"
+}"
