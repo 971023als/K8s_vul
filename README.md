@@ -1,8 +1,13 @@
-# AWS 취약점 진단 자동화 스크립트
+# Kubernetes 취약점 진단 자동화 스크립트
 
-이 프로젝트는 2024 클라우드 보안가이드(AWS) 기반으로 취약점을 점검하고 평가하는 자동화 스크립트를 제공합니다. 목표는 서버의 보안 상태를 평가하여 취약한 부분을 식별하고, 보안 조치를 취할 수 있도록 하는 것입니다.
+이 프로젝트는 Kubernetes 클러스터의 보안 취약점을 점검하고 평가하기 위한 자동화 스크립트를 제공합니다. 스크립트는 클러스터의 설정, 네트워크 보안, 인증 및 권한 관리를 평가하여 잠재적 보안 문제를 식별하고 개선할 수 있도록 돕습니다.
 
+---
 
+## 스크립트 개요
+스크립트는 Kubernetes의 보안 베스트 프랙티스를 기반으로 클러스터 설정을 점검합니다. 점검 결과는 JSON 형식으로 제공되며, 각 항목에 대한 취약 여부와 권장 조치 사항이 포함됩니다.
+
+### 결과 JSON 형식
 ```json
 {
   "점검항목명": {
@@ -11,38 +16,3 @@
   },
   ...
 }
-```
-
-
-```python
-cd root
-```
-
-```python
-sudo yum install git -y
-```
-
-```python
-sudo apt-get install git -y
-```
-
-
-```python
-sudo git clone https://github.com/971023als/linux_vul
-```
-
-```python
-cd linux_vul/Python_json/ubuntu/
-```
-
-cd linux_vul/change/
-```
-
-```python
-chmod +x vul.sh
-```
-
-
-```python
-./vul.sh
-```
